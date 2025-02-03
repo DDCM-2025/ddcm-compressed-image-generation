@@ -1,0 +1,12 @@
+torch
+torchvision
+matplotlib
+scipy==1.14.1
+tqdm
+numpy
+diffusers
+transformers
+accelerate
+xformers
+opencv-python
+timm
