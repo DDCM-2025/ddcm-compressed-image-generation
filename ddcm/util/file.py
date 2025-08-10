@@ -3,11 +3,26 @@ import numpy as np
 import torch
 
 
-def get_args_from_filename(filename, cfg=False):
+def get_args_from_filename(filename, cfg=False, iqa=False):
     T = int(re.search(r'T=(\d+)', filename).group(1))
+    K = int(re.search(r'K=(\d+)', filename).group(1))
+
+    if iqa:
+        iqa_metric = re.search(r'iqam=(\w)', filename).group(1)
+        iqa_coef = float(re.search(r'iqac=(\d+\.\d+)', filename).group(1))
+        aligned = bool(re.search(r'aligned=(\d)', filename).group(1))
+        if iqa_metric == 'n':
+            iqa_metric = 'niqe'
+        elif iqa_metric == 'c':
+            iqa_metric = 'clipiqa+'
+        elif iqa_metric == 't':
+            iqa_metric = 'topiq_nr-face'
+        else:
+            raise ValueError(f"Unknown iqa_metric: {iqa_metric}")
+        return T, K, iqa_metric, iqa_coef, aligned
+
     t_range = re.search(r'_in(\d+)-(\d+)', filename)
     t_range = (int(t_range.group(1)), int(t_range.group(2)))
-    K = int(re.search(r'K=(\d+)', filename).group(1))
     M = int(re.search(r'M=(\d+)', filename).group(1))
     C = int(re.search(r'C=(\d+)', filename).group(1))
     model_id = re.search(rf'model=(.+?)[\\/]', filename).group(1)

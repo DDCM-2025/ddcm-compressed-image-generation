@@ -1,0 +1,24 @@
+# Defaults for image training.
+
+image_size: 512
+num_channels: 32
+num_res_blocks: "1,2,2,2,2,3,4"
+learn_sigma: True
+class_cond: False
+conv_resample: True
+attention_resolutions: "32,16,8"
+num_head_channels: 64
+use_scale_shift_norm: True
+resblock_updown: False
+use_fp16: False
+use_checkpoint: False
+channel_mult: "1,2,4,8,8,16,16"
+num_heads: 1
+num_heads_upsample: -1
+dropout: 0.0
+dims: 2
+use_new_attention_order: False
+
+model_path: ./models/iddpm_ffhq512_ema0999_model_500000.pth
+
+

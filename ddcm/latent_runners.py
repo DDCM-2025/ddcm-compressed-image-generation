@@ -59,7 +59,7 @@ def get_loader(datadir: str, batch_size: int = 1,
 class FoldersDataset(VisionDataset):
     def __init__(self, root: str, transforms: Optional[Callable] = None) -> None:
         super().__init__(root, transforms)
-        self.root = root
+        self.root = root.strip(os.sep)
 
         if os.path.isdir(root):
             self.fpaths = glob(os.path.join(root, '**', '*.png'), recursive=True)
@@ -141,7 +141,7 @@ def compress(model: PipelineWrapper,
 
         # t_range: optimize only in range
         optimize_t = (t_range[0] >= t >= t_range[1])
-        
+
         noise = torch.randn(num_noises if optimize_t else 1, *xt.shape[1:], device=device, dtype=dtype)
 
         curr_prompt_embeds = src_prompt_embeds if idx < t_edit else dst_prompt_embeds
@@ -224,7 +224,7 @@ def generate(model: PipelineWrapper,
     model.set_timesteps(model.num_timesteps, device=device)
     dtype = model.dtype
 
-    random_seeds_for_choices = torch.randint(0, 2**16, (model.num_timesteps+1,), dtype=int)
+    random_seeds_for_choices = torch.randint(0, 2**16, (model.num_timesteps + 1,), dtype=int)
 
     set_seed(88888888)
     prompt_embeds = model.encode_prompt(prompt, negative_prompt)
@@ -238,7 +238,7 @@ def generate(model: PipelineWrapper,
     set_seed(random_seeds_for_choices[-1].item())
     best_idx = torch.randint(0, num_noises, (1,), device=device)
     xt = noise[best_idx]
-    
+
     pbar = tqdm(model.timesteps)
     for idx, t in enumerate(pbar):
         set_seed(idx)
@@ -308,4 +308,3 @@ def generate_ccfg(model: PipelineWrapper,
     except torch.OutOfMemoryError:
         img = model.decode_image(xt.to('cpu'))
     return img, torch.stack(result_noise_indices).squeeze().cpu()
-

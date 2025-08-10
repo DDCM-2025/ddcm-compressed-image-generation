@@ -1,6 +1,6 @@
 import os
 import argparse
-from pathlib import Path 
+from pathlib import Path
 
 import torch
 import matplotlib.pyplot as plt
@@ -30,10 +30,10 @@ def main():
                                                   'stabilityai/stable-diffusion-2-1',
                                                   'stabilityai/stable-diffusion-2-1-base'
                                                   ])
-    compression_args_parser.add_argument('--timesteps', dest='T', type=int, default=1000, help='Compress using T steps')
-    compression_args_parser.add_argument('--num_noises', dest='K', type=int, default=1024, help="Codebook size")
-    compression_args_parser.add_argument('--num_pursuit_noises', dest='M', type=int, default=1, help="Atoms in the MP version. MP starts when M > 1.")
-    compression_args_parser.add_argument('--num_pursuit_coef_bits', dest='C', type=int, default=1, help="Amount of discrete coefficients for MP.")
+    compression_args_parser.add_argument('-K', '--num_noises', dest='K', type=int, default=1024, help="Codebook size")
+    compression_args_parser.add_argument('-T', '--timesteps', dest='T', type=int, default=1000, help='Compress using T diffusion steps.')
+    compression_args_parser.add_argument('-M', '--num_pursuit_noises', dest='M', type=int, default=1, help="Atoms in the MP version. MP starts when M > 1.")
+    compression_args_parser.add_argument('-C', '--num_pursuit_coef_bits', dest='C', type=int, default=1, help="Amount of discrete coefficients for MP.")
     compression_args_parser.add_argument('--t_range', nargs=2, type=int, default=[999, 0], help="Optimize only a subset of the timesteps range.")
 
     compress_parser = subparsers.add_parser('compress', help='Compress a file', parents=[common_parser, compression_args_parser])

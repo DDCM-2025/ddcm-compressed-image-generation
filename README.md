@@ -18,18 +18,20 @@
 
 - [Requirements](#requirements)
 - [Change Log](#change-log)
-- [Usage Example](#usage-example)
+- [Usage Examples](#usage-examples)
   - [Compression](#compression)
   - [Compressed Posterior Sampling](#compressed-posterior-sampling)
   - [Compressed Blind Face Image Restoration](#compressed-blind-face-image-restoration)
   - [Additional Applications](#additional-applications)
     - [Compressed Classifier Free Guidance](#compressed-classifier-free-guidance)
-    - [Editing](#editing)
+    - [Compressed Text-Based Image Editing](#compressed-text-based-image-editing)
   - [Extras](#extras)
 - [Citation](#citation)
 - [Acknowledgements](#acknowledgements)
 
 ## Requirements
+
+Install dependencies using:
 
 ```bash
 python -m pip install -r requirements.txt
@@ -37,61 +39,137 @@ python -m pip install -r requirements.txt
 
 ## Change Log
 
+- **10.08.25**: Code release for compressed posterior sampling, compressed blind face image restoration & compressed text-based image editing, along with the extra experiments shown in the paper.
 - **27.07.25**: Initial release with code for latent compression.
 
-## Usage Example
+## Usage Examples
 
 ### Compression
 
-Our code supports compressing images of size $256^{2}$, $512^{2}$ and $768^{2}$.
+Our code supports compressing images of size $256^{2}$, $512^{2}$ and $768^{2}$. For $512^{2}$ and $768^{2}$ we use latent diffusion models; $256^{2}$ uses pixel-space diffusion (coming soon).
 
-To compress images of size $512^{2}$ or $768^{2}$, we are using latent diffusion models. In this case, you should use
+Run compression / decompression / roundtrip:
 
 ```bash
-python latent_compression.py compress|decompress|roundtrip
+python latent_compression.py compress|decompress|roundtrip [OPTIONS]
 ```
 
 You should specify the following arguments:
 
-- `model_id`: The pre-trained latent diffusion model to use (pulled from hugging face). You can choose between `stabilityai/stable-diffusion-2-1` (for images of size $768^2$), `stabilityai/stable-diffusion-2-1-base` (for images of size $512^2$), and  `CompVis/stable-diffusion-v1-4` (for images of size $512^2$).
-- `timesteps`: The number of sampling steps, e.g. `1000` (this is $T$ in our paper).
-- `num_noises`: The size of the codebook (this is $K$ in our paper).
-- `input_dir`: path to a directory that contains the images you wish to compress, or the binary files you wish to decompress.
+- `--model_id`: HuggingFace model ID. Choose between `stabilityai/stable-diffusion-2-1` (for images of size $768^2$) and `stabilityai/stable-diffusion-2-1-base` or `CompVis/stable-diffusion-v1-4` (for images of size $512^2$).
+- `--timesteps`: Number of denoising steps ($T$ in our paper).
+- `--num_noises`: Size of each codebook ($K$ in our paper).
+- `--input_dir`: Input directory (images to compress or binary files to decompress).
 
 See the `--help` flag for more options and details.
+The generated binary file name includes the compression metadata (e.g., $T$, $K$), which are automatically parsed at decompression.
 
-Here is a full example you could use to compress an image:
+Compression example:
 
 ```bash
 python latent_compression.py compress \
---gpu 0 \
 --float16 \
---input_dir ./assets/ \
---output_dir ./compressed_imgs/ \
+--input_dir ./test_imgs \
+--output_dir ./outputs \
 --model_id "stabilityai/stable-diffusion-2-1-base" \
 --num_noises 256 \
 --timesteps 1000
 ```
 
-To decompress a saved binary file:
+Decompression example:
 
 ```bash
 python latent_compression.py decompress \
---gpu 0 \
 --float16 \
 --input_dir ./compressed_binary_files/ \
---output_dir ./compressed_imgs/
+--output_dir ./output_imgs_decompressed
 ```
-
-Compressing images of size $256^2$ uses a pixel-space model, coming soon.
 
 ### Compressed Posterior Sampling
 
-Coming soon.
+This module can compress & perform posterior sampling for linear inverse problems (simultaneously), such as image super-resolution, colorization, and Gaussian blur. Internally, we use a pre-trained ImageNet diffusion model (see [guided-diffusion](https://github.com/openai/guided-diffusion)).
+
+Run restoration & compression / decompression:
+
+```bash
+python compressed_posterior_sampling.py restore|decompress [OPTIONS]
+```
+
+You should specify the following arguments:
+
+- `--input_path`: Path to image or binary `.bin` file.
+- `--output_dir`: Directory to save the output images or binary files.
+- `--task_config`: Configuration file for the task (e.g., `colorization.yaml`, `gaussian_blur.yaml`, `super_resolution.yaml`).
+- `--timesteps`: Number of denoising steps ($T$ in our paper).
+- `--num_noises`: Size of each codebook ($K$ in our paper).
+- `--eta`: Denoising parameter ($\eta$ in our paper).
+
+See the `--help` flag for more options and details.
+The generated binary file name includes the compression metadata (e.g., $T$, $K$), which are automatically parsed at decompression.
+
+Restoration & compression example for super-resolution:
+
+```bash
+python compressed_posterior_sampling.py restore \
+--task_config super_resolution.yaml \
+--input_path ./test_imgs \
+--output_dir ./outputs \
+--timesteps 1000 \
+--num_noises 256 \
+--eta 1.0
+```
+
+Decompression example:
+
+```bash
+python compressed_posterior_sampling.py decompress \
+--eta 1.0 \
+--input_path "./compressed_binary_files/image_T=1000_K=256.bin" \
+--output_dir ./output_imgs_decompressed
+```
 
 ### Compressed Blind Face Image Restoration
 
-Coming soon.
+This module can restore & compress (simultaneously) real-world degraded face images. It supports both aligned (recommended) and unaligned face images of size $512^2$. Internally, we use a FFHQ-trained diffusion model (see [DifFace](https://github.com/zsyOAOA/DifFace)) and a MSE SwinIR restoration model (see [SwinIR](https://github.com/JingyunLiang/SwinIR)).
+
+Run restoration & compression / decompression:
+Command:
+
+```bash
+python compressed_blind_face_restoration.py restore|decompress [OPTIONS]
+```
+
+You should specify the following arguments:
+
+- `--input_path`: Path to image or binary `.bin` file.
+- `--output_path`: Path prefix for saving the output.
+- `--num_noises`: Size of each codebook ($K$ in our paper).
+- `--timesteps`: Number of denoising steps ($T$ in our paper).
+- `--iqa_metric`: IQA metric to optimize (`niqe`, `clipiqa+`, `topiq_nr-face`)
+- `--aligned`: Flag if input face is aligned
+
+See the `--help` flag for more options and details.
+The generated binary file name includes the compression metadata (e.g., $T$, $K$), which are automatically parsed at decompression.
+
+Restoration & compression example:
+
+```bash
+python compressed_blind_face_restoration.py restore \
+--input_path ./aligned_degraded_face_img.jpg \
+--output_path ./aligned_degraded_face_img_restored \
+--aligned \
+--num_noises 4096 \
+--timesteps 1000 \
+--iqa_metric "niqe"
+```
+
+Decompression example:
+
+```bash
+python compressed_blind_face_restoration.py restore_and_compress \
+--input_path ./aligned_degraded_face_img_restored.bin \
+--output_path ./aligned_degraded_face_img_restored
+```
 
 ### Additional Applications
 
@@ -99,13 +177,66 @@ Coming soon.
 
 Coming soon.
 
-#### Editing
+#### Compressed Text-Based Image Editing
 
-Coming soon.
+This module enables text-guided image editing, where the resulting image is automatically compressed.
+
+Run editing & compression / re-editing from a previously compressed image:
+
+```bash
+python compressed_textbased_editing.py edit|reedit [OPTIONS]
+```
+
+You should specify the following arguments:
+
+- `--input_dir`: Input directory containing images to edit or binary files to re-edit.
+- `--output_dir`: Output directory for saving edited images or binary files.
+- `--model_id`: HuggingFace model ID for the diffusion model (e.g., `stabilityai/stable-diffusion-2-1-base`).
+- `--num_noises`: Size of each codebook ($K$ in our paper).
+- `--timesteps`: Number of denoising steps ($T$ in our paper).
+- `--num_pursuit_noises`: Number of matching-pursuit noises ($M$ in our paper).
+- `--num_pursuit_coef_bits`: Number of bits for matching-pursuit coefficients ($C$ in our paper).
+- `--guidance_scale`: Guidance scale for classifier-free guidance.
+- `--src_prompt`: Source prompt describing the original input image.
+- `--dst_prompts`: Target prompts describing the wanted edited images.
+- `--tskips`: How many timesteps-selection steps to skip (e.g., `200 500 700`). Smaller number yields stronger edits. Note that this number is dependent on how many timesteps are used.
+
+See the `--help` flag for more options and details.
+The generated binary file name includes the compression metadata (e.g., $T$, $K$), which are automatically parsed at decompression.
+
+Editing & compressing example:
+
+```bash
+python compressed_textbased_editing.py edit \
+--float16 \
+--input_dir ./images_to_edit \
+--output_dir ./outputs \
+--model_id "stabilityai/stable-diffusion-2-1-base" \
+--num_noises 8192 \
+--num_pursuit_noises 6 \
+--num_pursuit_coef_bits 1 \
+--timesteps 1000 \
+--guidance_scale 6.0 \
+--src_prompt "a photo of a cat" \
+--dst_prompts "a photo of a dog" "a photo of a lion" \
+--tskips 500 650 800
+```
+
+Re-editing & compressing example:
+
+```bash
+python compressed_textbased_editing.py reedit \
+--float16 \
+--input_dir ./compressed_binary_files \
+--output_dir ./outputs \
+--src_prompt "a photo of a cat" \
+--dst_prompts "a photo of a tiger" \
+--tskips 500 650 800
+```
 
 ### Extras
 
-We provide the code for additional experiements in the paper in the `extras` folder (coming soon).
+We provide the code for additional experiements in the paper in the `extras` folder.
 
 ## Citation
 
@@ -126,4 +257,4 @@ If you use this code for your research, please cite our paper:
 
 This project is released under the [MIT license](https://github.com/DDCM-2025/ddcm-compressed-image-generation/blob/main/LICENSE).
 
-We borrowed codes from [guided diffusion](https://github.com/openai/guided-diffusion) and [DPS](https://github.com/DPS2022/diffusion-posterior-sampling). We thank the authors of these repositories for their useful implementations.
+We borrowed codes from [huggingface](https://github.com/huggingface), [guided diffusion](https://github.com/openai/guided-diffusion), [DPS](https://github.com/DPS2022/diffusion-posterior-sampling), [SwinIR](https://github.com/JingyunLiang/SwinIR), [BasicSR](https://github.com/XPixelGroup/BasicSR), and [DifFace](https://github.com/zsyOAOA/DifFace). We thank the authors of these repositories for their useful implementations.

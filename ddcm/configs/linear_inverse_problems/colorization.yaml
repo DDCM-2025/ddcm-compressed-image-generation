@@ -1,0 +1,11 @@
+data:
+  name: ffhq
+  root: ./data/imagenet_val_1k_256
+
+measurement:
+  operator:
+    name: colorization
+  
+  noise: 
+    name: gaussian
+    sigma: 0.0
